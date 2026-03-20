@@ -1,87 +1,102 @@
 package main
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
+// 1. Tambahkan Tag GORM ke Struct Anda
+// gorm:"primaryKey" memberi tahu database bahwa ID ini adalah kunci utamanya
 type Dokumen struct {
-	ID         string `json:"id_dokumen"`
+	ID         string `gorm:"primaryKey" json:"id_dokumen"`
 	Perusahaan string `json:"nama_perusahaan"`
 	Status     string `json:"status_lingkungan"`
 	Skor       int    `json:"skor_evaluasi"`
 }
 
-// SIMULASI DATABASE: Kita letakkan di luar (Global) agar datanya tidak ter-reset
-var daftarAntrean = []Dokumen{
-	{ID: "DOC-001", Perusahaan: "PT. Tambang Emas", Status: "Aman", Skor: 85},
-	{ID: "DOC-002", Perusahaan: "PT. Asap Hitam", Status: "Kritis", Skor: 40},
-}
+// Variabel Global untuk menyimpan mesin Database kita
+var DB *gorm.DB
 
 func main() {
+	// 2. DSN (Data Source Name) - Alamat Lengkap Menuju Gudang Anda
+	dsn := "host=localhost user=dummy password=dummy dbname=speed_klhk port=5432 sslmode=disable TimeZone=Asia/Jakarta"
+
+	// 3. Mengetuk Pintu Database
+	var err error
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		// Jika gagal connect, program langsung dihentikan (Fatal)
+		log.Fatal("❌ Gagal terhubung ke Database: ", err)
+	}
+	fmt.Println("✅ BINGO! Berhasil masuk ke Database PostgreSQL!")
+
+	// 4. AUTO-MIGRATE (Keajaiban GORM)
+	// GORM akan membaca Struct "Dokumen", lalu berlari ke PostgreSQL
+	// dan otomatis membuatkan tabelnya untuk Anda!
+	DB.AutoMigrate(&Dokumen{})
+	fmt.Println("✅ Tabel 'dokumens' berhasil disinkronisasi ke Database!")
+
+	// --- SETUP GIN ROUTER ---
 	r := gin.Default()
 
-	// 1. Endpoint GET Status
 	r.GET("/api/status", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "🟢 ONLINE"})
+		c.JSON(http.StatusOK, gin.H{
+			"aplikasi": "SPEED KLHK",
+			"status":   "🟢 ONLINE & TERHUBUNG KE DATABASE",
+		})
 	})
 
-	// 2. Endpoint GET Dokumen (Membaca Data)
+	// ==========================================
+	// 1. GET: Mengambil Semua Dokumen dari Database
+	// ==========================================
 	r.GET("/api/dokumen", func(c *gin.Context) {
-		c.JSON(http.StatusOK, daftarAntrean)
+		var daftarDokumen []Dokumen
+
+		// KEAJAIBAN GORM: 1 baris ini setara dengan "SELECT * FROM dokumens"
+		DB.Find(&daftarDokumen)
+
+		c.JSON(http.StatusOK, daftarDokumen)
 	})
 
-	// 3. ENDPOINT BARU: POST Dokumen (Menerima Data)
+	// ==========================================
+	// 2. POST: Menyimpan Dokumen Baru ke Database
+	// ==========================================
 	r.POST("/api/dokumen", func(c *gin.Context) {
 		var dokumenBaru Dokumen
 
-		// Ajaibnya Gin: Menangkap teks JSON dari Insomnia,
-		// lalu memasukkannya (Bind) ke dalam Struct Golang kita secara otomatis!
 		if err := c.ShouldBindJSON(&dokumenBaru); err != nil {
-			// Jika format JSON-nya salah/cacat, tolak mentah-mentah!
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Format data salah!"})
 			return
 		}
 
-		// Jika sukses, masukkan data baru itu ke dalam "Database" (Slice) kita
-		daftarAntrean = append(daftarAntrean, dokumenBaru)
+		// KEAJAIBAN GORM: 1 baris ini setara dengan "INSERT INTO dokumens ..."
+		DB.Create(&dokumenBaru)
 
-		// Berikan balasan sukses ke pengirim
 		c.JSON(http.StatusCreated, gin.H{
-			"pesan": "Dokumen berhasil disubmit ke sistem SPEED!",
+			"pesan": "Berhasil dikunci di dalam Brankas Baja PostgreSQL!",
 			"data":  dokumenBaru,
 		})
 	})
-	// 4. ENDPOINT BARU: DELETE Dokumen (Menghapus Data)
-	// Tanda titik dua (:id) berarti itu adalah variabel dinamis yang bisa berubah-ubah
-	r.DELETE("/api/dokumen/:id", func(c *gin.Context) {
 
-		// 1. Tangkap ID yang diketik user di URL
+	// ==========================================
+	// 3. DELETE: Menghapus Dokumen dari Database
+	// ==========================================
+	r.DELETE("/api/dokumen/:id", func(c *gin.Context) {
 		idTarget := c.Param("id")
 
-		// 2. Cari dokumen tersebut di dalam "Database" (Slice) kita
-		for i, dok := range daftarAntrean {
-			if dok.ID == idTarget {
+		// KEAJAIBAN GORM: 1 baris ini setara dengan "DELETE FROM dokumens WHERE id = ?"
+		DB.Delete(&Dokumen{}, "id = ?", idTarget)
 
-				// JURUS RAHASIA GOLANG: Menghapus elemen dari tengah Slice
-				// Kita menyambungkan elemen "sebelum" target, dengan elemen "sesudah" target.
-				// Elemen targetnya otomatis tertimpa dan lenyap!
-				daftarAntrean = append(daftarAntrean[:i], daftarAntrean[i+1:]...)
-
-				// Balas dengan pesan sukses
-				c.JSON(http.StatusOK, gin.H{
-					"pesan": "Dokumen " + idTarget + " berhasil dibakar dari sistem!",
-				})
-				return // Hentikan pencarian karena dokumen sudah ketemu dan dihapus
-			}
-		}
-
-		// 3. Jika perulangan (looping) selesai tapi ID tidak ditemukan
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Gagal menghapus. Dokumen dengan ID " + idTarget + " tidak ditemukan.",
+		c.JSON(http.StatusOK, gin.H{
+			"pesan": "Dokumen " + idTarget + " berhasil dibumihanguskan dari Database!",
 		})
 	})
 
+	// Nyalakan Server
 	r.Run(":8080")
 }
