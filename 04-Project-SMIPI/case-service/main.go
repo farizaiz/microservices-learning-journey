@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"case-service/config"
-	"case-service/controllers" // Import folder controllers Anda
+	"case-service/controllers"
+	"case-service/middlewares"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,19 +18,32 @@ func main() {
 	// 2. Siapkan Gin Router
 	r := gin.Default()
 
+	// ==========================================
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
+	// ==========================================
+
 	// Rute percobaan
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "SMIPI Case Service Berjalan Mulus!"})
 	})
 
 	// ==========================================
-	// 3. DAFTARKAN RUTE API KASUS DI SINI
+	// RUTE RAHASIA (Dijaga Satpam)
 	// ==========================================
-	r.POST("/kasus", controllers.CreateKasus)
-	r.GET("/kasus", controllers.GetAllKasus)        // <-- Rute untuk mengambil semua data
-	r.GET("/kasus/:id", controllers.GetKasusByID)   // <-- Rute untuk mengambil data by ID
-	r.PUT("/kasus/:id", controllers.UpdateKasus)    // <-- Rute untuk Update
-	r.DELETE("/kasus/:id", controllers.DeleteKasus) // <-- Rute untuk Delete
+	protected := r.Group("/")
+	protected.Use(middlewares.AuthMiddleware())
+	{
+		protected.POST("/kasus", controllers.CreateKasus)
+		protected.GET("/kasus", controllers.GetAllKasus)
+		protected.PUT("/kasus/:id", controllers.UpdateKasus)
+		protected.DELETE("/kasus/:id", controllers.DeleteKasus)
+	}
 
 	// 4. Jalankan server
 	fmt.Println("🚀 Case Service menyala di PORT 8080...")
