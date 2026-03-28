@@ -41,7 +41,8 @@ func ConnectDatabase() {
 	fmt.Println("✅ Berhasil terhubung ke PostgreSQL via .env!")
 
 	// 5. Auto Migrate
-	err = database.AutoMigrate(&models.Kasus{})
+	// 🚨 TAMBAHKAN &models.AuditLog{} DI SINI 🚨
+	err = database.AutoMigrate(&models.Kasus{}, &models.AuditLog{})
 	if err != nil {
 		log.Fatal("❌ Gagal melakukan migrasi tabel:", err)
 	}
