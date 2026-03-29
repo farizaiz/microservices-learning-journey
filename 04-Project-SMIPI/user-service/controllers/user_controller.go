@@ -119,3 +119,31 @@ func GetProfil(c *gin.Context) {
 		"data":   user,
 	})
 }
+
+// ==========================================
+// 4. MANAJEMEN PENGGUNA (FITUR ADMIN - DUMMY)
+// ==========================================
+
+// GetAllUsers mengambil daftar semua pengguna (Khusus Admin)
+func GetAllUsers(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status": "BERHASIL",
+		"pesan":  "Fitur ambil semua daftar user sedang dalam pengembangan",
+	})
+}
+
+// UpdateUserRole mengubah role pengguna (Khusus Admin/Supervisor)
+func UpdateUserRole(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status": "BERHASIL",
+		"pesan":  "Fitur update role agent sedang dalam pengembangan",
+	})
+}
+
+// NonaktifkanUser menghapus/menonaktifkan akun pengguna (Khusus Admin)
+func NonaktifkanUser(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status": "BERHASIL",
+		"pesan":  "Fitur blokir/nonaktifkan user sedang dalam pengembangan",
+	})
+}

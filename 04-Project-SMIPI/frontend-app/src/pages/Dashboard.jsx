@@ -42,7 +42,7 @@ function Dashboard() {
   const fetchDataKasus = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:8080/kasus', {
+      const response = await axios.get('http://localhost:8080/api/kasus', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDaftarKasus(response.data.data);
@@ -64,10 +64,10 @@ function Dashboard() {
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       if (isEditing) {
-        await axios.put(`http://localhost:8080/kasus/${editId}`, formData, config);
+        await axios.put(`http://localhost:8080/api/kasus/${editId}`, formData, config);
         alert("Status Laporan berhasil diperbarui! 🔄");
       } else {
-        await axios.post('http://localhost:8080/kasus', formData, config);
+        await axios.post('http://localhost:8080/api/kasus', formData, config);
         alert("Laporan investigasi resmi dibuat! 🚀");
       }
       closeModal();
@@ -93,7 +93,7 @@ function Dashboard() {
     if (!konfirmasi) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:8080/kasus/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`http://localhost:8080/api/kasus/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       fetchDataKasus();
     } catch (error) {
       alert("Gagal menghapus laporan.");

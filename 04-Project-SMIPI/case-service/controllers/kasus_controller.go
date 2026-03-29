@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"net/http"
 
 	"case-service/config"
@@ -9,42 +10,54 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CreateKasus adalah fungsi untuk menerima laporan kasus baru
+// ==============================================================================
+// STRUKTUR DATA (Payload / DTO)
+// ==============================================================================
+
+// UpdateStatusInput adalah format JSON dari React
+type UpdateStatusInput struct {
+	StatusID  string `json:"status_id" binding:"required"` // Misalnya: "VALIDASI"
+	Prioritas string `json:"prioritas"`                    // Misalnya: "URGENT" (Opsional)
+}
+
+// ==============================================================================
+// HANDLER FUNGSI-FUNGSI KASUS (CONTROLLERS)
+// ==============================================================================
+
+// CreateKasus menerima laporan kasus baru
 func CreateKasus(c *gin.Context) {
 	var kasusBaru models.Kasus
 
-	// 1. Menangkap data JSON yang dikirim oleh user (misal dari Insomnia/Frontend)
 	if err := c.ShouldBindJSON(&kasusBaru); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"status": "GAGAL",
-			"pesan":  "Format data tidak valid: " + err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"status": "GAGAL", "pesan": err.Error()})
 		return
 	}
 
-	// 2. Menyimpan data tersebut ke PostgreSQL menggunakan GORM
+	// CATAT SIAPA YANG MEMBUAT KASUS INI
+	userID, exists := c.Get("user_id")
+	if exists {
+		if userIDStr, ok := userID.(string); ok {
+			kasusBaru.CreatedBy = userIDStr
+
+			// Jika PelaporID kosong dari frontend, otomatis isi dengan user yang sedang login
+			if kasusBaru.PelaporID == "" {
+				kasusBaru.PelaporID = userIDStr
+			}
+		}
+	}
+
 	if err := config.DB.Create(&kasusBaru).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"status": "GAGAL",
-			"pesan":  "Terjadi kesalahan saat menyimpan ke database",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "GAGAL", "pesan": "Kesalahan database"})
 		return
 	}
 
-	// 3. Mengembalikan jawaban sukses beserta data yang berhasil disimpan
-	c.JSON(http.StatusCreated, gin.H{
-		"status": "BERHASIL",
-		"pesan":  "Laporan Kasus Investigasi berhasil dicatat!",
-		"data":   kasusBaru,
-	})
+	c.JSON(http.StatusCreated, gin.H{"status": "BERHASIL", "data": kasusBaru})
 }
 
-// GetAllKasus mengambil semua daftar laporan dari database
+// GetAllKasus mengambil semua daftar laporan (Papan Kendali)
 func GetAllKasus(c *gin.Context) {
-	// Karena datanya banyak, kita gunakan Slice (Array) dari model Kasus
 	var daftarKasus []models.Kasus
 
-	// GORM akan otomatis melakukan: SELECT * FROM kasus;
 	if err := config.DB.Find(&daftarKasus).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status": "GAGAL",
@@ -63,11 +76,8 @@ func GetAllKasus(c *gin.Context) {
 // GetKasusByID mengambil satu detail laporan spesifik
 func GetKasusByID(c *gin.Context) {
 	var kasus models.Kasus
-
-	// Menangkap ID dari URL (misal: /kasus/510d53dc-...)
 	id := c.Param("id")
 
-	// GORM akan otomatis melakukan: SELECT * FROM kasus WHERE id = '...';
 	if err := config.DB.First(&kasus, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"status": "GAGAL",
@@ -82,12 +92,14 @@ func GetKasusByID(c *gin.Context) {
 	})
 }
 
-// UpdateKasus memperbarui data laporan yang sudah ada
+// UpdateKasus memperbarui data laporan secara menyeluruh (Edit Kasus)
 func UpdateKasus(c *gin.Context) {
 	var kasus models.Kasus
 	id := c.Param("id")
 
-	// 1. Cek dulu apakah kasus dengan ID tersebut ada di database?
+	// Ambil data siapa yang mengedit
+	userID, _ := c.Get("user_id")
+
 	if err := config.DB.First(&kasus, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"status": "GAGAL",
@@ -96,7 +108,6 @@ func UpdateKasus(c *gin.Context) {
 		return
 	}
 
-	// 2. Tangkap data perubahan dari user
 	if err := c.ShouldBindJSON(&kasus); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status": "GAGAL",
@@ -105,8 +116,8 @@ func UpdateKasus(c *gin.Context) {
 		return
 	}
 
-	// 3. Simpan perubahannya ke database
 	config.DB.Save(&kasus)
+	fmt.Printf("Kasus %v diedit oleh User ID: %v\n", id, userID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "BERHASIL",
@@ -115,12 +126,60 @@ func UpdateKasus(c *gin.Context) {
 	})
 }
 
-// DeleteKasus menghapus laporan (Soft Delete)
-func DeleteKasus(c *gin.Context) {
+func UpdateStatusKasus(c *gin.Context) {
 	var kasus models.Kasus
 	id := c.Param("id")
 
-	// 1. Cek keberadaan data
+	userID, _ := c.Get("user_id")
+
+	// Cari data kasusnya
+	if err := config.DB.First(&kasus, "id = ?", id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"status": "GAGAL", "pesan": "Laporan tidak ditemukan!"})
+		return
+	}
+
+	// Tangkap data JSON dari React
+	var input UpdateStatusInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "GAGAL", "pesan": "Format status tidak valid!"})
+		return
+	}
+
+	// Gunakan StatusID, bukan TindakanOperasional
+	kasus.StatusID = input.StatusID
+
+	// Jika dari frontend juga mengirim prioritas baru, kita update juga
+	if input.Prioritas != "" {
+		kasus.Prioritas = input.Prioritas
+	}
+
+	// Catat siapa yang melakukan update (dari token JWT)
+	if userIDStr, ok := userID.(string); ok {
+		kasus.UpdatedBy = userIDStr
+	}
+
+	// Simpan perubahan ke database
+	config.DB.Save(&kasus)
+
+	// Kembalikan respons sukses
+	c.JSON(http.StatusOK, gin.H{
+		"status": "BERHASIL",
+		"pesan":  "Status kasus berhasil diperbarui menjadi " + kasus.StatusID,
+		"data": gin.H{
+			"kasus_id":   id,
+			"status":     kasus.StatusID,
+			"prioritas":  kasus.Prioritas,
+			"updated_by": kasus.UpdatedBy,
+		},
+	})
+}
+
+// DeleteKasus menghapus laporan menggunakan mekanisme Soft Delete GORM
+func DeleteKasus(c *gin.Context) {
+	var kasus models.Kasus
+	id := c.Param("id")
+	userID, _ := c.Get("user_id")
+
 	if err := config.DB.First(&kasus, "id = ?", id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"status": "GAGAL",
@@ -129,10 +188,8 @@ func DeleteKasus(c *gin.Context) {
 		return
 	}
 
-	// 2. Lakukan penghapusan
-	// KARENA KITA PAKAI gorm.DeletedAt, GORM otomatis hanya akan mengisi kolom deleted_at (Soft Delete)
-	// Datanya TETAP ADA di database demi keamanan audit!
 	config.DB.Delete(&kasus)
+	fmt.Printf("Kasus %v diarsipkan (Soft Delete) oleh User ID: %v\n", id, userID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"status": "BERHASIL",

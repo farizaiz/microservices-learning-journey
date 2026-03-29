@@ -36,15 +36,28 @@ func main() {
 	// ==========================================
 	// RUTE RAHASIA (Dijaga Satpam)
 	// ==========================================
-	protected := r.Group("/")
+	protected := r.Group("/api") // Praktik terbaik: gunakan prefix /api
+
+	// SATPAM LAPIS 1: Cek apakah bawa Token JWT yang valid
 	protected.Use(middlewares.AuthMiddleware())
 	{
-		protected.POST("/kasus", controllers.CreateKasus)
-		protected.GET("/kasus", controllers.GetAllKasus)
-		protected.PUT("/kasus/:id", controllers.UpdateKasus)
-		protected.DELETE("/kasus/:id", controllers.DeleteKasus)
-	}
+		// 1. CREATE Kasus (Hanya Investigator dan Admin yang boleh buat laporan)
+		protected.POST("/kasus", middlewares.RequireRoles("Investigator", "Admin"), controllers.CreateKasus)
 
+		// 2. READ Kasus (Semua role boleh melihat Papan Kendali)
+		protected.GET("/kasus", middlewares.RequireRoles("Investigator", "Supervisor", "Admin", "Viewer"), controllers.GetAllKasus)
+
+		// 3. UPDATE Seluruh Kasus (Edit detail laporan)
+		protected.PUT("/kasus/:id", middlewares.RequireRoles("Investigator", "Supervisor", "Admin"), controllers.UpdateKasus)
+
+		// ---------------------------------------------------------
+		// RUTE BARU: Khusus untuk Modal "Update Status Kasus" di React
+		// ---------------------------------------------------------
+		protected.PUT("/kasus/:id/status", middlewares.RequireRoles("Investigator", "Supervisor", "Admin"), controllers.UpdateStatusKasus)
+
+		// 4. DELETE Kasus (Soft Delete, sangat ketat, hanya atasan yang boleh)
+		protected.DELETE("/kasus/:id", middlewares.RequireRoles("Supervisor", "Admin"), controllers.DeleteKasus)
+	}
 	// 4. Jalankan server
 	fmt.Println("🚀 Case Service menyala di PORT 8080...")
 	r.Run(":8080")
