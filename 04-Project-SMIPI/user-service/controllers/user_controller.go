@@ -126,17 +126,65 @@ func GetProfil(c *gin.Context) {
 
 // GetAllUsers mengambil daftar semua pengguna (Khusus Admin)
 func GetAllUsers(c *gin.Context) {
+	var users []models.User
+
+	// 1. Ambil semua data user dari database PostgreSQL
+	if err := config.DB.Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": "GAGAL",
+			"pesan":  "Terjadi kesalahan saat mengambil data pengguna",
+		})
+		return
+	}
+
+	// 2. ⚠️ KEAMANAN: Kosongkan field password dari seluruh data sebelum dikirim!
+	for i := range users {
+		users[i].Password = ""
+	}
+
+	// 3. Kirim data ke Frontend dalam format JSON
 	c.JSON(http.StatusOK, gin.H{
 		"status": "BERHASIL",
-		"pesan":  "Fitur ambil semua daftar user sedang dalam pengembangan",
+		"pesan":  "Berhasil mengambil daftar pengguna",
+		"data":   users, // <--- Ini yang ditunggu-tunggu oleh React!
 	})
+}
+
+// Struktur untuk menerima JSON dari frontend
+type UpdateRoleInput struct {
+	Role string `json:"role" binding:"required"`
 }
 
 // UpdateUserRole mengubah role pengguna (Khusus Admin/Supervisor)
 func UpdateUserRole(c *gin.Context) {
+	// 1. Ambil ID user dari parameter URL (misal: /api/users/123/role)
+	userID := c.Param("id")
+
+	// 2. Tangkap data role baru dari frontend
+	var input UpdateRoleInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "GAGAL", "pesan": "Format data tidak valid"})
+		return
+	}
+
+	// 3. Cari user tersebut di database
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"status": "GAGAL", "pesan": "Pengguna tidak ditemukan"})
+		return
+	}
+
+	// 4. Update rolenya dan simpan ke database
+	user.Role = input.Role
+	if err := config.DB.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"status": "GAGAL", "pesan": "Gagal menyimpan perubahan role"})
+		return
+	}
+
+	// 5. Kirim respon sukses
 	c.JSON(http.StatusOK, gin.H{
 		"status": "BERHASIL",
-		"pesan":  "Fitur update role agent sedang dalam pengembangan",
+		"pesan":  "Hak akses (Role) berhasil diperbarui!",
 	})
 }
 
