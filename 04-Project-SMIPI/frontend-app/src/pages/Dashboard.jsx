@@ -100,11 +100,18 @@ function Dashboard() {
     setIsModalOpen(true);
   };
 
-  // --- LOGIKA FILTER & PENCARIAN ---
+// --- LOGIKA FILTER & PENCARIAN ---
   const filteredData = daftarKasus.filter(kasus => {
     const matchSearch = kasus.nomor_lp.toLowerCase().includes(searchTerm.toLowerCase()) || 
                         kasus.lokasi_kejadian.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = filterStatus === '' || kasus.status_id === filterStatus;
+    
+    let matchStatus = true;
+    if (filterStatus === 'AKTIF') {
+      matchStatus = kasus.status_id !== 'STAT-SELESAI'; // Tampilkan semua yang BELUM selesai
+    } else if (filterStatus !== '') {
+      matchStatus = kasus.status_id === filterStatus;
+    }
+
     const matchPrioritas = filterPrioritas === '' || kasus.prioritas === filterPrioritas;
     return matchSearch && matchStatus && matchPrioritas;
   });
@@ -125,6 +132,22 @@ function Dashboard() {
     else if (prioritas === 'NORMAL') { bgColor = '#e7f5ff'; textColor = '#1864ab'; }
     else { bgColor = '#ebfbee'; textColor = '#2b8a3e'; }
     return <span style={{ backgroundColor: bgColor, color: textColor, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: `1px solid ${textColor}40` }}>{prioritas}</span>;
+  };
+
+  const StatusBadge = ({ statusId }) => {
+    const statuses = {
+      'STAT-001': { label: 'DILAPORKAN', color: '#495057', bg: '#e9ecef' },
+      'STAT-002': { label: 'DIINVESTIGASI', color: '#856404', bg: '#fff3cd' },
+      'STAT-003': { label: 'VALIDASI', color: '#0056b3', bg: '#cce5ff' },
+      'STAT-SELESAI': { label: 'SELESAI', color: '#155724', bg: '#d4edda' }
+    };
+    const status = statuses[statusId] || { label: statusId, color: '#333', bg: '#eee' };
+    
+    return (
+      <span style={{ backgroundColor: status.bg, color: status.color, padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', border: `1px solid ${status.color}40`, display: 'inline-block', textAlign: 'center', minWidth: '80px' }}>
+        {status.label}
+      </span>
+    );
   };
 
   const getKategoriName = (id) => {
@@ -177,12 +200,19 @@ function Dashboard() {
   return (
     <div style={{ padding: '30px', maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '25px' }}>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', width: '100%' }}>
-        <SummaryCard title="Total Kasus" value={totalKasus} color="#0056b3" icon="📑" onClickAction={() => {setFilterStatus(''); setFilterPrioritas('');}} />
-        <SummaryCard title="Kasus Aktif" value={kasusAktif} color="#fd7e14" icon="🔥" onClickAction={() => setFilterStatus('STAT-002')} />
-        <SummaryCard title="Urgent (High)" value={kasusUrgent} color="#dc3545" icon="🚨" onClickAction={() => setFilterPrioritas('URGENT')} />
-        <SummaryCard title="Telah Selesai" value={kasusSelesai} color="#28a745" icon="✅" onClickAction={() => setFilterStatus('STAT-SELESAI')} />
-      </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', width: '100%' }}>
+          <SummaryCard title="Total Kasus" value={totalKasus} color="#0056b3" icon="📑" 
+            onClickAction={() => { setFilterStatus(''); setFilterPrioritas(''); setSearchTerm(''); }} />
+            
+          <SummaryCard title="Kasus Aktif" value={kasusAktif} color="#fd7e14" icon="🔥" 
+            onClickAction={() => { setFilterStatus('AKTIF'); setFilterPrioritas(''); setSearchTerm(''); }} />
+            
+          <SummaryCard title="Urgent (High)" value={kasusUrgent} color="#dc3545" icon="🚨" 
+            onClickAction={() => { setFilterPrioritas('URGENT'); setFilterStatus(''); setSearchTerm(''); }} />
+            
+          <SummaryCard title="Telah Selesai" value={kasusSelesai} color="#28a745" icon="✅" 
+            onClickAction={() => { setFilterStatus('STAT-SELESAI'); setFilterPrioritas(''); setSearchTerm(''); }} />
+        </div>
 
       <div style={{ backgroundColor: '#ffffff', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
         
@@ -207,6 +237,7 @@ function Dashboard() {
           </select>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ flex: '1', padding: '10px', border: '1px solid #ced4da', borderRadius: '6px', outline: 'none', backgroundColor: '#fff', fontWeight: 'bold', color: filterStatus ? '#0056b3' : '#495057' }}>
             <option value="">Semua Status</option>
+            <option value="AKTIF">⏳ STATUS: AKTIF (Berjalan)</option> {/* OPSI BARU */}
             <option value="STAT-001">DILAPORKAN</option>
             <option value="STAT-002">DIINVESTIGASI</option>
             <option value="STAT-003">VALIDASI</option>
@@ -218,10 +249,12 @@ function Dashboard() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
             <thead>
               <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700' }}>No. Register (LP)</th>
+                <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700', whiteSpace: 'nowrap' }}>No. Register (LP)</th>
                 <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700' }}>Kategori</th>
-                <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700' }}>Unit Penanganan</th>
+                <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700' }}>Lokasi</th>
+                <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700', whiteSpace: 'nowrap' }}>Unit Penanganan</th>
                 <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700' }}>Prioritas</th>
+                <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700' }}>Status</th>
                 <th style={{ padding: '12px 16px', color: '#495057', fontWeight: '700', textAlign: 'center' }}>Tindakan</th>
               </tr>
             </thead>
@@ -229,31 +262,57 @@ function Dashboard() {
               {currentItems.length > 0 ? (
                 currentItems.map((kasus) => (
                   <tr key={kasus.id} style={{ borderBottom: '1px solid #e9ecef' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    
+                    {/* 1. NOMOR LP */}
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: '700', color: '#0056b3', fontSize: '14px' }}>{kasus.nomor_lp}</div>
-                      <div style={{ fontSize: '11px', color: '#6c757d', marginTop: '4px' }}>📍 {kasus.lokasi_kejadian.substring(0, 25)}...</div>
+                      <div style={{ fontWeight: '700', color: '#0056b3', fontSize: '13px' }}>{kasus.nomor_lp}</div>
                     </td>
-                    <td style={{ padding: '12px 16px', color: '#495057', fontWeight: '600' }}>{getKategoriName(kasus.kategori_kasus_id)}</td>
+                    
+                    {/* 2. KATEGORI */}
+                    <td style={{ padding: '12px 16px', color: '#495057', fontWeight: '600' }}>
+                      {getKategoriName(kasus.kategori_kasus_id)}
+                    </td>
+                    
+                    {/* 3. LOKASI (Kolom Baru yang Dipisah) */}
                     <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#e9ecef', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>👤</div>
-                        <span style={{ fontWeight: '600', color: '#333' }}>Tim Alpha ({nama || 'Penyidik'})</span>
+                      <div style={{ fontSize: '12px', color: '#495057' }}>
+                        📍 {kasus.lokasi_kejadian.substring(0, 30)}{kasus.lokasi_kejadian.length > 30 ? '...' : ''}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px' }}><PriorityBadge prioritas={kasus.prioritas} /></td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <button onClick={() => setViewDetail(kasus)} style={{ padding: '6px 12px', backgroundColor: '#e7f5ff', color: '#0056b3', border: '1px solid #b8daff', borderRadius: '4px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold', fontSize: '12px' }}>
-                        👁️ Pantau Kasus
+
+                    {/* 4. UNIT PENANGANAN */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#e9ecef', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>👤</div>
+                        <span style={{ fontWeight: '600', color: '#333', fontSize: '12px' }}>Tim Alpha</span>
+                      </div>
+                    </td>
+                    
+                    {/* 5. PRIORITAS */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <PriorityBadge prioritas={kasus.prioritas} />
+                    </td>
+                    
+                    {/* 6. STATUS (Kolom Baru) */}
+                    <td style={{ padding: '12px 16px' }}>
+                      <StatusBadge statusId={kasus.status_id} />
+                    </td>
+
+                    {/* 7. TINDAKAN (Teks disingkat agar muat) */}
+                    <td style={{ padding: '12px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => setViewDetail(kasus)} style={{ padding: '6px 10px', backgroundColor: '#e7f5ff', color: '#0056b3', border: '1px solid #b8daff', borderRadius: '4px', cursor: 'pointer', marginRight: '5px', fontWeight: 'bold', fontSize: '11px' }}>
+                        👁️ Pantau
                       </button>
-                      <button onClick={() => klikEdit(kasus)} style={{ padding: '6px 12px', backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
-                        ⚙️ Update Status
+                      <button onClick={() => klikEdit(kasus)} style={{ padding: '6px 10px', backgroundColor: '#fff3cd', color: '#856404', border: '1px solid #ffeeba', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11px' }}>
+                        ⚙️ Update
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" style={{ padding: '50px', textAlign: 'center', color: '#868e96' }}>
+                  {/* UPDATE PENTING: colSpan diubah jadi 7 karena kolomnya bertambah */}
+                  <td colSpan="7" style={{ padding: '50px', textAlign: 'center', color: '#868e96' }}>
                     <div style={{ fontSize: '40px', marginBottom: '10px' }}>📁</div>
                     <strong>Papan Kendali Kosong.</strong><br/>Tidak ada data yang sesuai dengan filter operasi saat ini.
                   </td>
