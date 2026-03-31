@@ -75,7 +75,7 @@ Aplikasi ini dipisahkan menjadi beberapa layanan independen (*services*) yang be
 | :---: |
 | ![Login Page](./04-Project-SMIPI/frontend-app/src/assets/screenshot-login.png) |
 
-| Papan Kendali Operasional | Manajemen Pengguna (Admin Only) |
+| Dashboard Kasus | Manajemen Pengguna (Admin Only) |
 | :---: | :---: |
 | ![Dashboard](./04-Project-SMIPI/frontend-app/src/assets/screenshot-dashboard.png) | ![User Management](./04-Project-SMIPI/frontend-app/src/assets/screenshot-users.png) |
 
