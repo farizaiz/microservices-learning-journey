@@ -27,7 +27,7 @@ Tahap implementasi akhir (Proyek Utama). Membangun **SMIPI (Sistem Manajemen Inf
 
 ---
 
-## 🛡️ Tahap 04: Capstone Project - SMIPI
+## 🛡️ Capstone Project - SMIPI
 
 **SMIPI (Sistem Manajemen Informasi Pelaporan Investigasi)** adalah portal aplikasi web skala *enterprise* yang dirancang untuk mengelola, melacak, dan memantau pelaporan kasus investigasi secara *real-time*. Sistem ini dibangun menggunakan arsitektur **Microservices** untuk memastikan skalabilitas, keamanan, dan pemisahan domain kerja yang jelas.
 
@@ -73,11 +73,11 @@ Aplikasi ini dipisahkan menjadi beberapa layanan independen (*services*) yang be
 
 | Halaman Login |
 | :---: |
-| ![Login Page](./frontend-app/src/assets/screenshot-login.png) |
+| ![Login Page](./04-Project-SMIPI/frontend-app/src/assets/screenshot-login.png) |
 
 | Papan Kendali Operasional | Manajemen Pengguna (Admin Only) |
 | :---: | :---: |
-| ![Dashboard](./frontend-app/src/assets/screenshot-dashboard.png) | ![User Management](./frontend-app/src/assets/screenshot-users.png) |
+| ![Dashboard](./04-Project-SMIPI/frontend-app/src/assets/screenshot-dashboard.png) | ![User Management](./04-Project-SMIPI/frontend-app/src/assets/screenshot-users.png) |
 
 ---
 
